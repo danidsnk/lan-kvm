@@ -1,5 +1,4 @@
 #include <functional>
-#include <libevdev/libevdev-uinput.h>
 #include <libevdev/libevdev.h>
 #include <string>
 
@@ -16,12 +15,7 @@ public:
 
 private:
     void close() const;
-    int _fd = -1;
-};
-
-struct event_ret {
-    int status;
-    input_event event;
+    int fd_ = -1;
 };
 
 class evdev_device {
@@ -33,18 +27,15 @@ public:
     evdev_device(evdev_device &&other) noexcept;
     evdev_device &operator=(evdev_device &&other) noexcept;
     ~evdev_device();
-    libevdev *device();
-    [[nodiscard]] std::string name() const;
-    [[nodiscard]] std::string phys() const;
 
-    void process_events(const std::function<void(const input_event &)> &callback) const;
+    void process_events(const std::function<bool(const input_event &)> &callback) const;
 
     static evdev_device create(const std::string &name);
     static evdev_device find_by_name(const std::string &name);
 
 private:
-    [[nodiscard]] event_ret next_event() const;
+    [[nodiscard]] std::tuple<int, input_event> next_event() const;
 
-    libevdev *_dev = nullptr;
-    file_descriptor _fd;
+    libevdev *dev_ = nullptr;
+    file_descriptor fd_;
 };

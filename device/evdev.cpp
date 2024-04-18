@@ -12,90 +12,86 @@
 // right type 2 code 0 value 1
 
 file_descriptor::file_descriptor(const std::string &path, int flags) {
-    if (_fd = open(path.c_str(), flags); _fd == -1) {
+    if (fd_ = open(path.c_str(), flags); fd_ == -1) {
         throw std::runtime_error("Failed to open file descriptor");
     }
 }
 
 file_descriptor::file_descriptor(file_descriptor &&other) noexcept
-    : _fd(other._fd) {
-    other._fd = -1;
+    : fd_(other.fd_) {
+    other.fd_ = -1;
 }
 
 file_descriptor &file_descriptor::operator=(file_descriptor &&other) noexcept {
     if (this != &other) {
         close();
-        _fd = other._fd;
-        other._fd = -1;
+        fd_ = other.fd_;
+        other.fd_ = -1;
     }
     return *this;
 }
 
 file_descriptor::~file_descriptor() { close(); }
 
-file_descriptor::operator int() const { return _fd; }
+file_descriptor::operator int() const { return fd_; }
 
 void file_descriptor::close() const {
-    if (_fd != -1) {
-        ::close(_fd);
+    if (fd_ != -1) {
+        ::close(fd_);
     }
 }
 
 evdev_device::evdev_device(const std::string &path, int flags)
-    : _fd(path, flags) {
-    if (libevdev_new_from_fd(_fd, &_dev) != 0) {
+    : fd_(path, flags) {
+    if (libevdev_new_from_fd(fd_, &dev_) != 0) {
         throw std::runtime_error("Failed to create libevdev device");
     }
+    libevdev_grab(dev_, LIBEVDEV_GRAB);
 }
 
 evdev_device::evdev_device(evdev_device &&other) noexcept
-    : _fd(std::move(other._fd)), _dev(other._dev) {
-    other._dev = nullptr;
+    : fd_(std::move(other.fd_)), dev_(other.dev_) {
+    other.dev_ = nullptr;
 }
 
 evdev_device &evdev_device::operator=(evdev_device &&other) noexcept {
     if (this != &other) {
-        if (_dev != nullptr) {
-            libevdev_free(_dev);
-        }
-        _fd = std::move(other._fd);
-        _dev = other._dev;
-        other._dev = nullptr;
+        this->~evdev_device();
+        fd_ = std::move(other.fd_);
+        dev_ = other.dev_;
+        other.dev_ = nullptr;
     }
     return *this;
 }
 
 evdev_device::~evdev_device() {
-    if (_dev != nullptr) {
-        libevdev_free(_dev);
+    if (dev_ != nullptr) {
+        libevdev_grab(dev_, LIBEVDEV_UNGRAB);
+        libevdev_free(dev_);
     }
 }
 
-libevdev *evdev_device::device() { return _dev; }
-
-[[nodiscard]] std::string evdev_device::name() const { return libevdev_get_name(_dev); }
-
-[[nodiscard]] std::string evdev_device::phys() const { return libevdev_get_phys(_dev); }
-
-void evdev_device::process_events(const std::function<void(const input_event &)> &callback) const {
+void evdev_device::process_events(const std::function<bool(const input_event &)> &callback) const {
     auto is_error = [](int status) { return status < 0 && status != -EAGAIN; };
     auto has_next_event = [](int status) { return status >= 0; };
-    while (true) {
+
+    bool running = true;
+    while (running) {
         auto [status, event] = next_event();
         if (is_error(status)) {
             throw std::runtime_error("Failed to read event");
         }
-        if (!has_next_event(status)) {
-            continue;
-        }
-        callback(event);
+        // if (!has_next_event(status)) {
+        //     continue;
+        // }
+        running = callback(event);
     }
 }
 
 evdev_device evdev_device::create(const std::string &name) {
     evdev_device dev;
-    dev._dev = libevdev_new();
-    libevdev_set_name(dev._dev, name.c_str());
+    dev.dev_ = libevdev_new();
+    libevdev_set_name(dev.dev_, name.c_str());
     // libevdev_enable_property(dev._dev, INPUT_PROP_POINTER);
     return dev;
 }
@@ -103,8 +99,8 @@ evdev_device evdev_device::create(const std::string &name) {
 evdev_device evdev_device::find_by_name(const std::string &name) {
     for (int i = 0;; ++i) {
         try {
-            evdev_device dev("/dev/input/event" + std::to_string(i), O_RDWR | O_CLOEXEC);
-            if (dev.name() == name) {
+            evdev_device dev("/dev/input/event" + std::to_string(i), O_RDONLY);
+            if (name == libevdev_get_name(dev.dev_)) {
                 return dev;
             }
         } catch (const std::runtime_error &) {
@@ -114,9 +110,9 @@ evdev_device evdev_device::find_by_name(const std::string &name) {
     throw std::runtime_error("Failed to find device by name");
 }
 
-[[nodiscard]] event_ret evdev_device::next_event() const {
+[[nodiscard]] std::tuple<int, input_event> evdev_device::next_event() const {
     input_event ev = {};
-    const auto flags = LIBEVDEV_READ_FLAG_NORMAL | LIBEVDEV_READ_FLAG_BLOCKING;
-    auto status = libevdev_next_event(_dev, flags, &ev);
+    const auto flags = LIBEVDEV_READ_FLAG_NORMAL;
+    auto status = libevdev_next_event(dev_, flags, &ev);
     return { status, ev };
 }

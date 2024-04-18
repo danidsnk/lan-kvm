@@ -11,29 +11,45 @@ struct event {
 
 int main() {
     try {
-        boost::asio::io_context io_context;
-        tcp::resolver resolver{ io_context };
-        tcp::resolver::results_type endpoints = resolver.resolve("localhost", "1448");
-        tcp::socket socket{ io_context };
-        boost::asio::connect(socket, endpoints);
-
         while (true) {
-            boost::system::error_code error;
-            event buf{};
-            socket.read_some(boost::asio::buffer(&buf, sizeof(buf)), error);
+            boost::asio::io_context context;
+            tcp::resolver resolver{ context };
+            tcp::socket socket{ context };
 
-            if (error) {
+            std::cout << "Connecting...\n";
+            while (true) {
+                tcp::endpoint endpoint{ boost::asio::ip::make_address("127.0.0.1"), 1448 };
+                boost::system::error_code error;
+                socket.connect(endpoint, error);
+                if (!error) {
+                    break;
+                }
+                socket.close();
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+            std::cout << "Connected\n";
+
+            while (true) {
+                event buf = {};
+                boost::system::error_code error;
+                socket.read_some(boost::asio::buffer(&buf, sizeof(buf)), error);
                 if (error == boost::asio::error::eof) {
                     break;
                 }
-                throw boost::system::system_error(error);
+                if (error) {
+                    throw boost::system::system_error(error);
+                }
+                if (buf.code == 96) {
+                    socket.close();
+                    break;
+                }
+                std::cout << "type: " << buf.type
+                          << " code: " << buf.code
+                          << " value: " << buf.value << '\n';
             }
-
-            std::cout << "type: " << buf.type
-                      << " code: " << buf.code
-                      << " value: " << buf.value << '\n';
+            std::cout << "Disconnected\n";
+            std::this_thread::sleep_for(std::chrono::seconds(10));
         }
-
     } catch (std::exception &e) {
         std::cerr << e.what() << std::endl;
     }
