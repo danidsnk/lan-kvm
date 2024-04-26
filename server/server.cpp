@@ -1,35 +1,39 @@
 #include "devicecapture.h"
 #include "packetsender.h"
 #include <boost/asio.hpp>
+#include <boost/program_options.hpp>
 
-using boost::asio::ip::tcp;
+std::tuple<std::string, std::string, int> parse_args(int argc, char **argv) {
+    namespace po = boost::program_options;
+    po::options_description desc("Options");
+    desc.add_options()
+        ("mouse,m", po::value<std::string>(), "Mouse name")
+        ("keyboard,k", po::value<std::string>(), "Keyboard name")
+        ("port,p", po::value<int>(), "Port");
 
-int main() {
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
+    if (!vm.count("mouse") || !vm.count("keyboard") || !vm.count("port")) {
+        throw std::runtime_error("Mouse, keyboard, and port are required");
+    }
+    return { vm["mouse"].as<std::string>(),
+             vm["keyboard"].as<std::string>(),
+             vm["port"].as<int>() };
+}
+
+int main(int argc, char **argv) {
     try {
-        while (true) {
-            boost::asio::io_context context;
-            tcp::acceptor acceptor(context, tcp::endpoint(tcp::v4(), 1448));
-            tcp::socket socket(context);
-            acceptor.accept(socket);
-            std::cout << "Connected\n";
+        auto [mouse, keyboard, port] = parse_args(argc, argv);
 
-            using dev_event = device_capture<shared_queue>::device_event;
-            {
-                shared_queue<dev_event> queue;
+        network::packet_sender sender{ port };
+        device::device_capture mouse_capture{ mouse };
+        device::device_capture keyboard_capture{ keyboard };
 
-                packet_sender<dev_event> sender(
-                    socket, queue, std::chrono::milliseconds(1000 / 144));
-                device_capture<shared_queue> mouse_capture("Logitech G305", queue);
-                device_capture<shared_queue> keyboard_capture("foostan Corne", queue);
-
-                mouse_capture.start();
-                keyboard_capture.start();
-                sender.start();
-
-                context.run();
-            }
-            std::cout << "Disconnected\n";
-        }
+        mouse_capture.start(sender.queue());
+        keyboard_capture.start(sender.queue());
+        sender.start();
 
     } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;

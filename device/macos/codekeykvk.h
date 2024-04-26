@@ -2,12 +2,11 @@
 #define EVDEVTOCGKEY_H
 
 #include <Carbon/Carbon.h>
-#include <cstdint>
+#include <stdexcept>
 
 namespace device::emulation {
 
 enum CODE_KEY {
-    ERROR_CODE = std::numeric_limits<CGKeyCode>::max(),
     KEY_ESC = 1,
     KEY_1 = 2,
     KEY_2 = 3,
@@ -264,7 +263,7 @@ inline CGKeyCode codekey_to_kvk(int key) {
     case KEY_RIGHTMETA:
         return kVK_RightCommand;
     default:
-        return ERROR_CODE;
+        throw std::invalid_argument("Invalid key code");
     }
 }
 

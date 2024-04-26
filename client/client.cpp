@@ -38,7 +38,7 @@ bool event_handler(device_event ev) {
     std::cout << "type: " << ev.type
               << " code: " << ev.code
               << " value: " << ev.value << '\n';
-    if (mouse.is_valid(ev)) {
+    if (device::emulation::virtual_mouse::is_valid(ev)) {
         mouse.process_event(ev);
     } else {
         keyboard.process_event(ev);

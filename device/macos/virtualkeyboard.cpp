@@ -15,15 +15,12 @@ enum KEY_STATE {
 };
 
 void virtual_keyboard::process_event(device_event event) {
-    auto code = codekey_to_kvk(event.code);
-
-    bool valid = event.type == TYPE::KEY &&
-                 code != ERROR_CODE;
-    if (!valid) {
+    if (event.type != TYPE::KEY) {
         return;
     }
-
+    auto code = codekey_to_kvk(event.code);
     auto mods = process_modifiers(code, event.value);
+
     switch (event.value) {
     case KEY_STATE::PRESSED:
     case KEY_STATE::HOLDED:

@@ -1,32 +1,35 @@
-#include <mutex>
+#ifndef SHAREDQUEUE_H
+#define SHAREDQUEUE_H
+
 #include <condition_variable>
+#include <mutex>
 #include <vector>
+
+namespace network {
 
 template <typename T>
 class shared_queue {
 public:
     using value_type = T;
-    using queue_type = std::vector<T>;
+    using container_type = std::vector<T>;
 
-    shared_queue() = default;
-    shared_queue(const shared_queue &) = delete;
-    shared_queue &operator=(const shared_queue &) = delete;
-    shared_queue(shared_queue &&) = delete;
-    shared_queue &operator=(shared_queue &&) = delete;
-    ~shared_queue() = default;
     void push(const T &value) {
         std::unique_lock<std::mutex> lock(mutex_);
         queue_.push_back(value);
         cond_.notify_one();
     }
-    void wait_swap(std::vector<T> &queue) noexcept {
+    void swap_buffer(std::vector<T> &queue) {
         std::unique_lock<std::mutex> lock(mutex_);
         cond_.wait(lock, [this] { return !queue_.empty(); });
-        queue = std::move(queue_);
+        queue_.swap(queue);
     }
 
 private:
-    std::vector<T> queue_;
+    container_type queue_;
     mutable std::mutex mutex_;
     std::condition_variable cond_;
 };
+
+} // namespace network
+
+#endif

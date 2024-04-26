@@ -1,50 +1,15 @@
 #include "evdev.h"
 #include <fcntl.h>
-#include <stdexcept>
-#include <unistd.h>
+#include <filesystem>
+#include <format>
+#include <ranges>
 
-// foostan Corne
-//
-// Logitech G305
-// up type 2 code 1 value -1
-// down type 2 code 1 value 1
-// left type 2 code 0 value -1
-// right type 2 code 0 value 1
-
-file_descriptor::file_descriptor(const std::string &path, int flags) {
-    if (fd_ = open(path.c_str(), flags); fd_ == -1) {
-        throw std::runtime_error("Failed to open file descriptor");
-    }
-}
-
-file_descriptor::file_descriptor(file_descriptor &&other) noexcept
-    : fd_(other.fd_) {
-    other.fd_ = -1;
-}
-
-file_descriptor &file_descriptor::operator=(file_descriptor &&other) noexcept {
-    if (this != &other) {
-        close();
-        fd_ = other.fd_;
-        other.fd_ = -1;
-    }
-    return *this;
-}
-
-file_descriptor::~file_descriptor() { close(); }
-
-file_descriptor::operator int() const { return fd_; }
-
-void file_descriptor::close() const {
-    if (fd_ != -1) {
-        ::close(fd_);
-    }
-}
+namespace device {
 
 evdev_device::evdev_device(const std::string &path, int flags)
     : fd_(path, flags) {
     if (libevdev_new_from_fd(fd_, &dev_) != 0) {
-        throw std::runtime_error("Failed to create libevdev device");
+        throw evdev_error("Failed to initialize libevdev device");
     }
     libevdev_grab(dev_, LIBEVDEV_GRAB);
 }
@@ -71,21 +36,11 @@ evdev_device::~evdev_device() {
     }
 }
 
-void evdev_device::process_events(const std::function<bool(const input_event &)> &callback) const {
-    auto is_error = [](int status) { return status < 0 && status != -EAGAIN; };
-    auto has_next_event = [](int status) { return status >= 0; };
-
-    bool running = true;
-    while (running) {
-        auto [status, event] = next_event();
-        if (is_error(status)) {
-            throw std::runtime_error("Failed to read event");
-        }
-        // if (!has_next_event(status)) {
-        //     continue;
-        // }
-        running = callback(event);
-    }
+void evdev_device::process_events(const std::function<bool(const input_event &)> &callback) {
+    input_event event{};
+    do {
+        event = next_event();
+    } while (callback(event));
 }
 
 evdev_device evdev_device::create(const std::string &name) {
@@ -97,22 +52,32 @@ evdev_device evdev_device::create(const std::string &name) {
 }
 
 evdev_device evdev_device::find_by_name(const std::string &name) {
-    for (int i = 0;; ++i) {
-        try {
-            evdev_device dev("/dev/input/event" + std::to_string(i), O_RDONLY);
-            if (name == libevdev_get_name(dev.dev_)) {
-                return dev;
-            }
-        } catch (const std::runtime_error &) {
-            break;
+    using dir = std::filesystem::directory_iterator;
+    using std::ranges::views::filter;
+
+    auto is_event = [](auto &&entry) {
+        return entry.path().string().contains("event");
+    };
+
+    for (auto &&entry : dir("/dev/input") | filter(is_event)) {
+        evdev_device dev(entry.path(), O_RDONLY);
+        if (name == libevdev_get_name(dev.dev_)) {
+            return dev;
         }
     }
-    throw std::runtime_error("Failed to find device by name");
+
+    throw evdev_error(std::format("Failed to find device: {}", name));
 }
 
-[[nodiscard]] std::tuple<int, input_event> evdev_device::next_event() const {
+input_event evdev_device::next_event() {
     input_event ev = {};
-    const auto flags = LIBEVDEV_READ_FLAG_NORMAL;
+    constexpr auto flags = LIBEVDEV_READ_FLAG_NORMAL;
     auto status = libevdev_next_event(dev_, flags, &ev);
-    return { status, ev };
+
+    if (status < 0 && status != -EAGAIN) {
+        throw evdev_error("Failed to read event");
+    }
+    return ev;
 }
+
+} // namespace device
