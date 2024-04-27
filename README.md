@@ -35,9 +35,9 @@ make client
 ddcutil setvcp 60 0x0f
 
 server \
-    -mouse "my mouse" \
-    -keyboard "my keyboard" \
-    -port 1234
+    --mouse "my mouse" \
+    --keyboard "my keyboard" \
+    --port 1234
 
 ddcutil setvcp 60 0x12
 ```
