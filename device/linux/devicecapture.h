@@ -18,17 +18,15 @@ public:
 
     ~device_capture() {
         running_ = false;
-        if (thread_.joinable()) {
-            thread_.join();
-        }
+        thread_.join();
     }
 
     template <typename Q>
-    void start(Q &queue) {
+    void start(Q queue) {
         thread_ = std::thread([this, &queue] {
             device_.process_events([this, &queue](const input_event &event) {
                 if (running_ && (event.type == EV_KEY || event.type == EV_REL)) {
-                    queue.push({ event.type, event.code, event.value });
+                    queue->push({ event.type, event.code, event.value });
                 }
                 return running_;
             });
