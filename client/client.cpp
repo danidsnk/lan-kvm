@@ -35,9 +35,6 @@ bool event_handler(device_event ev) {
     if (ev.code == STOP_CODE) {
         return false;
     }
-    std::cout << "type: " << ev.type
-              << " code: " << ev.code
-              << " value: " << ev.value << '\n';
     if (device::emulation::virtual_mouse::is_valid(ev)) {
         mouse.process_event(ev);
     } else {
