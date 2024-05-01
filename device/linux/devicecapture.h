@@ -17,26 +17,29 @@ public:
     device_capture &operator=(device_capture &&) = delete;
 
     ~device_capture() {
-        running_ = false;
+        thread_.request_stop();
         thread_.join();
     }
 
     template <typename Q>
     void start(Q &queue) {
-        thread_ = std::thread([this, &queue] {
-            device_.process_events([this, &queue](const input_event &event) {
-                if (running_ && (event.type == EV_KEY || event.type == EV_REL)) {
-                    queue.push({ event.type, event.code, event.value });
-                }
-                return running_;
-            });
+        thread_ = std::jthread([this, &queue](std::stop_token stoken) {
+            device_.process_events(
+                [this, &queue, stoken](const input_event &event) {
+                    bool running = !stoken.stop_requested();
+                    bool event_valid = event.type == EV_KEY || event.type == EV_REL;
+
+                    if (running && event_valid) {
+                        queue.push({ event.type, event.code, event.value });
+                    }
+                    return running;
+                });
         });
     }
 
 private:
     evdev_device device_;
-    std::thread thread_;
-    bool running_ = true;
+    std::jthread thread_;
 };
 
 } // namespace device
