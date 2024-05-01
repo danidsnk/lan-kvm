@@ -7,7 +7,7 @@
 namespace {
 
 constexpr int STOP_CODE = 96;
-constexpr double MOUSE_SPEED = .8;
+constexpr double MOUSE_SPEED = .7;
 
 } // namespace
 
