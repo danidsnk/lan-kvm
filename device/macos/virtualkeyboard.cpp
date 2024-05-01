@@ -66,6 +66,13 @@ CGEventFlags virtual_keyboard::process_modifiers(CGKeyCode code, int value) {
         mod = kCGEventFlagMaskCommand;
         break;
     }
+    case kVK_LeftArrow:
+    case kVK_RightArrow:
+    case kVK_UpArrow:
+    case kVK_DownArrow: {
+        mod = kCGEventFlagMaskSecondaryFn;
+        break;
+    }
     default:
         return modifiers_;
     }
