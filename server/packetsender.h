@@ -5,7 +5,6 @@
 #include "sharedqueue.h"
 #include <boost/asio.hpp>
 #include <iostream>
-#include <memory>
 
 namespace network {
 
@@ -21,7 +20,7 @@ class packet_sender {
 public:
     explicit packet_sender(int port) : port_(port) {}
 
-    auto queue() { return queue_; }
+    auto &queue() { return queue_; }
 
     void start() {
         tcp::acceptor acceptor(context_, tcp::endpoint(tcp::v4(), port_));
@@ -34,7 +33,7 @@ public:
 
 private:
     void send_packet() {
-        auto buf = queue_->pop_all();
+        auto buf = queue_.pop_all();
         socket_.async_send(
             boost::asio::buffer(buf),
             [this](boost::system::error_code ec, auto) {
@@ -51,10 +50,8 @@ private:
         timer_.async_wait([this](auto) { send_packet(); });
     }
 
-    using queue_t = shared_queue<device_event>;
-
     int port_;
-    std::shared_ptr<queue_t> queue_{ new queue_t{ BUFFER_SIZE } };
+    shared_queue<device_event> queue_{ BUFFER_SIZE };
     boost::asio::io_context context_;
     tcp::socket socket_{ context_ };
     std::chrono::milliseconds interval_{ SERVER_TIMER };
