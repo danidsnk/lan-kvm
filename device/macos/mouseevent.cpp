@@ -7,23 +7,20 @@ mouse_event::~mouse_event() {
 }
 
 void mouse_event::move(CGPoint position, CGEventType type) {
-    mouse_event event;
-    event.mouse_event_ =
+    mouse_event event =
         CGEventCreateMouseEvent(nullptr, type, position,
                                 kCGMouseButtonLeft /* ignored? */);
     event.post();
 }
 
 void mouse_event::scroll(int y, int x) {
-    mouse_event event;
-    event.mouse_event_ =
+    mouse_event event =
         CGEventCreateScrollWheelEvent(nullptr, kCGScrollEventUnitLine, 1, y, x);
     event.post();
 }
 
 void mouse_event::click(CGPoint position, CGEventType type) {
-    mouse_event event;
-    event.mouse_event_ =
+    mouse_event event =
         CGEventCreateMouseEvent(nullptr, type, position, kCGMouseButtonCenter);
     event.post();
 }

@@ -17,7 +17,9 @@ public:
     static void release(CGKeyCode code, CGEventFlags mods);
 
 private:
-    keyboard_event() = default;
+    keyboard_event(CGEventRef event) : key_event_{ event } {}
+
+    void post(CGEventFlags mods);
 
     CGEventRef key_event_ = nullptr;
 };

@@ -18,7 +18,8 @@ public:
     static void scroll(int y, int x = 0);
 
 private:
-    mouse_event() = default;
+    mouse_event(CGEventRef event) : mouse_event_{ event } {}
+
     void post();
 
     CGEventRef mouse_event_ = nullptr;
