@@ -78,8 +78,14 @@ inline int scroll_speed(int value) {
     // expected value: 120 or -120
     // CGEventCreateScrollWheelEvent requires max 10 or -10
     // https://developer.apple.com/documentation/coregraphics/1541327-cgeventcreatescrollwheelevent
-    constexpr int div = 20;
-    return value / div;
+    constexpr int scroll_step = 5;
+    if (value > 0) {
+        return scroll_step;
+    }
+    if (value < 0) {
+        return -scroll_step;
+    }
+    throw std::invalid_argument("Invalid scroll value");
 }
 
 void virtual_mouse::process_axis(device_event ev) {
