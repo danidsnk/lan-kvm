@@ -15,7 +15,10 @@ std::tuple<std::string, std::string, int> parse_args(int argc, char **argv) {
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-    if (!vm.count("mouse") || !vm.count("keyboard") || !vm.count("port")) {
+    if (!vm.contains("mouse") ||
+        !vm.contains("keyboard") ||
+        !vm.contains("port")) {
+
         throw std::runtime_error("Mouse, keyboard, and port are required");
     }
     return { vm["mouse"].as<std::string>(),

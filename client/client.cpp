@@ -22,7 +22,7 @@ std::tuple<std::string, int> parse_args(int argc, char **argv) {
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-    if (!vm.count("host") || !vm.count("port")) {
+    if (!vm.contains("host") || !vm.contains("port")) {
         throw std::runtime_error("Host and port are required");
     }
     return { vm["host"].as<std::string>(), vm["port"].as<int>() };
