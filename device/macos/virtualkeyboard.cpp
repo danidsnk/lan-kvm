@@ -1,6 +1,7 @@
 #include "virtualkeyboard.h"
-#include "codekeykvk.h"
+#include "codekeyconverter.h"
 #include "keyboardevent.h"
+#include <iostream>
 
 namespace device::emulation {
 
@@ -18,7 +19,15 @@ void virtual_keyboard::process_event(device_event event) {
     if (event.type != TYPE::KEY) {
         return;
     }
-    auto code = codekey_to_kvk(event.code);
+
+    CGKeyCode code{ 0 };
+    try {
+        code = codekey_to_cgcodekey(event.code);
+    } catch (const std::invalid_argument &e) {
+        std::cerr << e.what() << std::endl;
+        return;
+    }
+
     auto mods = process_modifiers(code, event.value);
 
     switch (event.value) {

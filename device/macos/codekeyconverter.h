@@ -2,6 +2,7 @@
 #define EVDEVTOCGKEY_H
 
 #include <Carbon/Carbon.h>
+#include <format>
 #include <stdexcept>
 
 namespace device::emulation {
@@ -94,7 +95,7 @@ enum CODE_KEY {
     KEY_RIGHTMETA = 126,
 };
 
-inline CGKeyCode codekey_to_kvk(int key) {
+inline CGKeyCode codekey_to_cgcodekey(int key) {
     switch (key) {
     case KEY_ESC:
         return kVK_Escape;
@@ -263,7 +264,7 @@ inline CGKeyCode codekey_to_kvk(int key) {
     case KEY_RIGHTMETA:
         return kVK_RightCommand;
     default:
-        throw std::invalid_argument("Invalid key code");
+        throw std::invalid_argument(std::format("Invalid key code: {}", key));
     }
 }
 

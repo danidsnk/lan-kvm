@@ -49,14 +49,19 @@ CGPoint virtual_mouse::validate_position(double x, double y) {
 }
 
 bool virtual_mouse::is_valid(device_event ev) {
-    bool holded = ev.type == TYPE::BUTTON && ev.value == BUTTON_STATE::HOLDED;
-    bool mouse_button = ev.code == BUTTON::LEFT ||
-                        ev.code == BUTTON::RIGHT ||
-                        ev.code == BUTTON::MIDDLE;
-    return (!holded && mouse_button) || ev.type == TYPE::AXIS;
+    const bool mouse_button = ev.code == BUTTON::LEFT ||
+                              ev.code == BUTTON::RIGHT ||
+                              ev.code == BUTTON::MIDDLE;
+    return mouse_button || ev.type == TYPE::AXIS;
 }
 
 void virtual_mouse::process_event(device_event ev) {
+    const bool holded = ev.type == TYPE::BUTTON &&
+                        ev.value == BUTTON_STATE::HOLDED;
+    if (holded) {
+        return;
+    }
+
     switch (ev.type) {
     case TYPE::AXIS:
         process_axis(ev);
